@@ -1,0 +1,110 @@
+#!/bin/sh
+echo "Content-type: text/html"
+echo ""
+echo "<html><head>
+<meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1'>
+   <link rel='stylesheet' href='https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css'>
+  <script src='https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js'></script>
+  <script src='https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js'></script> 
+</head>
+<body>
+<div class='container-fluid'>
+<div class='row'><div class='col-md-1'></div>
+  <div class='col-md-10' style='border-radius: 15px; border: 2px solid #0275d8;'>
+<br><br>"
+echo "<h2>MAC Administration</h2>"
+echo ""
+read QUERY_STRING
+if [ ! -z "$QUERY_STRING" ] ; then
+	eval $(echo "$QUERY_STRING"|awk -F'&' '{for(i=1;i<=NF;i++){print $i}}')
+	mac=`uhttpd -d $mac`
+	name=`uhttpd -d $name`
+	if [ ! -z $create  ]; then
+		if [ ${#mac} -eq 17 ] && [ ${#name} -gt 0 ]; then
+			if [ -z $(grep $mac /root/mac.lst) ]; then
+				echo $mac >> /root/mac.lst
+				echo $name >> /root/name.lst
+				echo "<div class='alert alert-success' role='alert'>MAC saved succesfully..</div>";
+				unset mac
+				unset name
+			else
+				echo "<div class='alert alert-warning' role='alert'>MAC already saved.</div>";
+			fi
+		else
+			echo "<div class='alert alert-danger' role='alert'>Error in the data, please verify.</div>";
+		fi
+	elif [ $delete ] && [ ${#mac} -eq 17 ]; then
+		echo "Delete"
+		line_number=`grep -n $mac /root/mac.lst | cut -d : -f 1` 
+		sed -i -e "${line_number},${line_number}d" /root/mac.lst
+		sed -i -e "${line_number},${line_number}d" /root/name.lst
+		echo "<div class='alert alert-success' role='alert'>MAC eliminated.</div>";
+	elif [ $apply ]; then
+		if [ ! -f "/root/mac.lst" ]; then
+			echo "<div class='alert alert-danger' role='alert'>No MAC file found, please add at least one to proceed.</div>";
+		else
+			
+			for f in $(seq 0 1 10); do
+				if uci show wireless | grep -q "@wifi-iface\[$f\].ssid"; then 
+					if ! uci show wireless | grep -q "@wifi-iface\[$f\].ssid='*Guests'"; then #If the WiFi name has "Guests" on its name, it will be skipped 
+						uci set wireless.@wifi-iface[$f].macfilter=allow; 
+						uci del wireless.@wifi-iface[$f].maclist; 
+						for g in $( cat /root/mac.lst ); do 
+							uci add_list wireless.@wifi-iface[$f].maclist=$g; 
+						done; 
+					fi; 
+				fi;
+			done
+			uci commit wireless
+			wifi
+			echo "<div class='alert alert-success' role='alert'>Changes applied successfully.</div>";
+		fi
+	else
+		echo "<div class='alert alert-danger' role='alert'>Unrecognized button, bug present. Please file it on GitHub.</div>";
+	fi
+fi
+echo "<form method='POST' action='$SCRIPT_NAME'>	
+MAC: <input class='form-control' type='text' id='mac' name='mac' value='$mac' autofocus><br>
+Nombre: <input class='form-control' type='text' name='name' value='$name' ><br>
+<input class='btn btn-primary' name='create' type='submit' value='Add'><input class='btn btn-primary pull-right' name='apply' type='submit' value='Apply changes'>
+</form>"
+
+if [ -f "/root/mac.lst"  ]; then
+	i=1
+	echo "<table class='table table-striped'>";
+	echo "<tr><th>MAC</th><th>Name</th><th>Delete</th></tr>";
+	for p in `cat /root/mac.lst`; do 
+		echo "<tr>";
+		echo "<td>$p<form action='$SCRIPT_NAME' method='POST'><INPUT type='hidden' name='mac' value='$p'></td>";
+		tmp = `sed -n '$i,$ip' /root/name.lst`
+		echo "<td>$(sed -n "${i},${i}p" /root/name.lst)</td>";
+		echo "<td><input class='btn btn-primary' name='delete' type='submit' value='Delete'></form></td>";
+		echo "</tr>"; 
+		i=$(($i + 1));
+	done
+	echo "</table>";
+fi
+
+echo "<script>
+<!-- http://stackoverflow.com/questions/16168125/auto-insert-colon-while-entering-mac-address-after-each-2-digit -->
+var macAddress = document.getElementById('mac');
+
+function formatMAC(e) {
+    var r = /([a-f0-9]{2})([a-f0-9]{2})/i,
+        str = e.target.value.replace(/[^a-f0-9]/ig, '');
+    
+    while (r.test(str)) {
+        str = str.replace(r, '$1' + ':' + '$2');
+    }
+
+    e.target.value = str.slice(0, 17);
+};
+
+mac.addEventListener('keyup', formatMAC, false);
+</script>
+
+</div>
+<div class='col-md-1'></div>
+</div>
+</body></html>"
