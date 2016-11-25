@@ -66,7 +66,7 @@ if [ ! -z "$QUERY_STRING" ] ; then
 fi
 echo "<form method='POST' action='$SCRIPT_NAME'>	
 MAC: <input class='form-control' type='text' id='mac' name='mac' value='$mac' autofocus><br>
-Nombre: <input class='form-control' type='text' name='name' value='$name' ><br>
+Name: <input class='form-control' type='text' name='name' value='$name' ><br>
 <input class='btn btn-primary' name='create' type='submit' value='Add'><input class='btn btn-primary pull-right' name='apply' type='submit' value='Apply changes'>
 </form>"
 
